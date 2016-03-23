@@ -18,12 +18,12 @@ type App struct {
 }
 
 type Device struct {
-  Id string           `json:"id"`
-  Model string        `json:"model"`
-  Vendor string       `json:"vendor"`
-  OS string           `json:"os"`
-  ApiVersion string   `json:"api_version"`
-  Keys []ApiKey       `json:"keys"`
+  Id string               `json:"device_id"`
+  Model string            `json:"model"`
+  Vendor string           `json:"vendor"`
+  Platform string         `json:"platform"`
+  PlatformVersion string  `json:"platform_version"`
+  Keys []ApiKey           `json:"keys"`
 }
 
 type ApiKey struct {

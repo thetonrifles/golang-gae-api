@@ -80,22 +80,29 @@ func GetApiKeyHandler(w http.ResponseWriter, r *http.Request) {
 /**
  * Register a new device or update an existing one.
  * {
- *   "id" : "abcdefghijklmnopqrstuvwxyz0123456789"
+ *   "device_id" : "abcdefghijklmnopqrstuvwxyz0123456789"
  *   "model" : "Nexus"
  *   "vendor" : "LG"
- *   "os" : "Android 6"
- *   "api_version" : "0.0.7"
+ *   "platform" : "Android"
+ *   "platform_version" : "23"
  *  }
  *  Authorization: a.petreri@atooma.com
  */
 func PostDeviceHandler(w http.ResponseWriter, r *http.Request) {
+  sender := strings.Split(r.Header.Get("Authorization"), ":")
+  //apiVersion := sender[0]
+  //deviceId := sender[1]
+  //lang := sender[2]
+  appId := sender[3]
+  //pack := sender[4]
   decoder := json.NewDecoder(r.Body)
   var device Device
   err := decoder.Decode(&device)
   if err == nil {
     success, err := PostDevice(r, &device)
     if success {
-      responseHandler(w, device)
+      key := ApiKey{Key:random(10),AppId:appId}
+      responseHandler(w, key)
     } else {
       errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
     }
@@ -138,72 +145,3 @@ func errorHandler(w http.ResponseWriter, r *http.Request, status int, message st
   encoder := json.NewEncoder(w)
   encoder.Encode(response)
 }
-
-
-
-
-/*
-func GetCalendarsHandler(w http.ResponseWriter, r *http.Request) {
-  owner := r.Header.Get("Authorization")
-  calendars := GetCalendars(r, owner)
-  for _, calendar := range calendars {
-    if calendar.Events == nil {
-      calendar.Events = []Event{}
-    }
-  }
-  responseHandler(w, calendars)
-}
-
-func GetCalendarHandler(w http.ResponseWriter, r *http.Request) {
-  owner := r.Header.Get("Authorization")
-  vars := mux.Vars(r)
-  calendar := GetCalendar(r, owner, vars["id"])
-  if calendar != nil {
-    if calendar.Events == nil {
-      calendar.Events = []Event{}
-    }
-    responseHandler(w, calendar)
-  } else {
-    errorHandler(w, r, http.StatusNotFound, "not found")
-  }
-}
-
-func PostCalendarHandler(w http.ResponseWriter, r *http.Request) {
-  owner := r.Header.Get("Authorization")
-  decoder := json.NewDecoder(r.Body)
-  var calendar Calendar
-  err := decoder.Decode(&calendar)
-  if err == nil {
-    calendar.Owner = owner
-    if calendar.Events == nil {
-      calendar.Events = []Event{}
-    }
-    success, err := PostCalendar(r, calendar)
-    if success {
-      responseHandler(w, calendar)
-    } else {
-      errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
-    }
-  } else {
-    errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
-  }
-}
-
-func PostEventHandler(w http.ResponseWriter, r *http.Request) {
-  owner := r.Header.Get("Authorization")
-  vars := mux.Vars(r)
-  decoder := json.NewDecoder(r.Body)
-  var event Event
-  err := decoder.Decode(&event)
-  if err == nil {
-    success, err := PostEvent(r, vars["calendarId"], owner, event)
-    if success {
-      responseHandler(w, event)
-    } else {
-      errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
-    }
-  } else {
-    errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
-  }
-}
-*/
