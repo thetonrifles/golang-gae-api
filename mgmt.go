@@ -2,19 +2,24 @@ package api
 
 import (
   "fmt"
+  "time"
   "errors"
   "net/http"
+  "math/rand"
   "crypto/md5"
   "google.golang.org/appengine"
   "google.golang.org/appengine/datastore"
+  "google.golang.org/appengine/log"
 )
 
 type App struct {
-  Id string           `json:"id"`
-  Name string         `json:"name"`
-  Owner string        `json:"owner"`
-  Android string      `json:"android_package"`
-  IOS string          `json:"ios_bundle"`
+  Id string               `json:"id"`
+  Name string             `json:"name"`
+  Owner string            `json:"owner"`
+  Android string          `json:"android_package"`
+  IOS string              `json:"ios_bundle"`
+  CreatedOn time.Time     `json:"created_on"`
+  LastUpdate time.Time    `json:"last_update"`
 }
 
 type Device struct {
@@ -24,11 +29,13 @@ type Device struct {
   Platform string         `json:"platform"`
   PlatformVersion string  `json:"platform_version"`
   Keys []ApiKey           `json:"keys"`
+  CreatedOn time.Time     `json:"created_on"`
+  LastUpdate time.Time    `json:"last_update"`
 }
 
 type ApiKey struct {
-  Key string          `json:"key"`
-  AppId string        `json:"app_id"`
+  Key string              `json:"key"`
+  AppId string            `json:"app_id"`
 }
 
 /**
@@ -40,6 +47,8 @@ func PostApp(r *http.Request, app *App) (bool, error) {
   appKey := datastore.NewKey(context, "application", key, 0, nil)
   err := datastore.Get(context, appKey, app)
   if err != nil {
+    (*app).CreatedOn = time.Now()
+    (*app).LastUpdate = time.Now()
     _, err := datastore.Put(context, appKey, app)
     if err != nil {
       return false, err
@@ -54,13 +63,13 @@ func PostApp(r *http.Request, app *App) (bool, error) {
 /**
  *  Get an app from Google Datastore.
  */
-func GetApp(r *http.Request, appId string) *App {
+func GetApp(r *http.Request, appId string) App {
   context := appengine.NewContext(r)
   key := hash(appId)
   appKey := datastore.NewKey(context, "application", key, 0, nil)
   var app App
   datastore.Get(context, appKey, &app)
-	return &app
+	return app
 }
 
 /**
@@ -90,6 +99,8 @@ func PostDevice(r *http.Request, device *Device) (bool, error) {
   if err != nil {
     // device do not exists... let's insert it
     (*device).Keys = []ApiKey{}
+    (*device).CreatedOn = time.Now()
+    (*device).LastUpdate = time.Now()
     _, err := datastore.Put(context, deviceKey, device)
     if err != nil {
       return false, err
@@ -98,10 +109,14 @@ func PostDevice(r *http.Request, device *Device) (bool, error) {
     }
   } else {
     // device exists... let's update it
-    (*device).Keys = existingDevice.Keys
     if (*device).Keys == nil {
-      (*device).Keys = []ApiKey{}
+      if existingDevice.Keys == nil {
+        (*device).Keys = []ApiKey{}
+      } else {
+        (*device).Keys = existingDevice.Keys
+      }
     }
+    (*device).LastUpdate = time.Now()
     _, err := datastore.Put(context, deviceKey, device)
     if err != nil {
       return false, err
@@ -111,7 +126,42 @@ func PostDevice(r *http.Request, device *Device) (bool, error) {
   }
 }
 
+func GetApiKey(r *http.Request, device *Device, appId string) ApiKey {
+  context := appengine.NewContext(r)
+  if (*device).Keys == nil {
+    apiKey := ApiKey{Key:random(10),AppId:appId}
+    (*device).Keys = []ApiKey{apiKey}
+    log.Debugf(context, fmt.Sprintf("new key for device: %v", (*device)))
+    PostDevice(r, device)
+    return apiKey
+  } else {
+    apiKey := ApiKey{Key:"", AppId:appId}
+    for _, key := range (*device).Keys {
+      if key.AppId == appId {
+        apiKey.Key = key.Key
+      }
+    }
+    if len(apiKey.Key) == 0 {
+      apiKey.Key = random(10)
+      (*device).Keys = append((*device).Keys, apiKey)
+      log.Debugf(context, fmt.Sprintf("new key for device: %v", (*device)))
+      PostDevice(r, device)
+    }
+    return apiKey
+  }
+}
+
 func hash(s string) string {
   data := []byte(s)
   return fmt.Sprintf("%x", md5.Sum(data))
+}
+
+func random(strlen int) string {
+	rand.Seed(time.Now().UTC().UnixNano())
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	result := make([]byte, strlen)
+	for i := 0; i < strlen; i++ {
+		result[i] = chars[rand.Intn(len(chars))]
+	}
+	return string(result)
 }

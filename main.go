@@ -3,8 +3,6 @@ package api
 import (
   "fmt"
   "strings"
-  "time"
-  "math/rand"
   "net/http"
   "encoding/json"
   "github.com/gorilla/mux"
@@ -20,7 +18,6 @@ func init() {
   r.HandleFunc("/api/app", auth(PostAppHandler)).Methods("POST")
   r.HandleFunc("/api/apps", auth(GetAppsHandler)).Methods("GET")
   r.HandleFunc("/api/device", auth(PostDeviceHandler)).Methods("POST")
-  r.HandleFunc("/api/auth", auth(GetApiKeyHandler)).Methods("GET")
   http.Handle("/", r)
 }
 
@@ -61,23 +58,6 @@ func GetAppsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 /**
- *  Authorization: com.atooma.resonance.sdk:ed51f97e73b10b974f765ecfad1579dd
- */
-func GetApiKeyHandler(w http.ResponseWriter, r *http.Request) {
-  sender := strings.Split(r.Header.Get("Authorization"), ":")
-  androidPackage, appId, _ := sender[0], sender[1], sender[2]
-  app := GetApp(r, appId)
-  if app.Android == androidPackage {
-    key := ApiKey{Key:random(10),AppId:appId}
-    //app.Keys = append(app.Keys, key)
-    //PostApp(r, *app)
-    responseHandler(w, key)
-  } else {
-    errorHandler(w, r, http.StatusUnauthorized, "package not allowed")
-  }
-}
-
-/**
  * Register a new device or update an existing one.
  * {
  *   "device_id" : "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -94,31 +74,28 @@ func PostDeviceHandler(w http.ResponseWriter, r *http.Request) {
   //deviceId := sender[1]
   //lang := sender[2]
   appId := sender[3]
-  //pack := sender[4]
-  decoder := json.NewDecoder(r.Body)
-  var device Device
-  err := decoder.Decode(&device)
-  if err == nil {
-    success, err := PostDevice(r, &device)
-    if success {
-      key := ApiKey{Key:random(10),AppId:appId}
-      responseHandler(w, key)
+  androidPackage := sender[4]
+  // retrieving app, relying on id
+  app := GetApp(r, appId)
+  if app.Android == androidPackage {
+    // valid package... let's generate api key and update device
+    decoder := json.NewDecoder(r.Body)
+    var device Device
+    err := decoder.Decode(&device)
+    if err == nil {
+      success, err := PostDevice(r, &device)
+      if success {
+        apiKey := GetApiKey(r, &device, appId)  // _ :=
+        responseHandler(w, apiKey)
+      } else {
+        errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+      }
     } else {
       errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
     }
   } else {
-    errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+    errorHandler(w, r, http.StatusUnauthorized, "package not allowed")
   }
-}
-
-func random(strlen int) string {
-	rand.Seed(time.Now().UTC().UnixNano())
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	result := make([]byte, strlen)
-	for i := 0; i < strlen; i++ {
-		result[i] = chars[rand.Intn(len(chars))]
-	}
-	return string(result)
 }
 
 func auth(fn http.HandlerFunc) http.HandlerFunc {
