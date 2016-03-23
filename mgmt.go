@@ -34,13 +34,13 @@ type ApiKey struct {
 /**
  *  Create a new app in Google Datastore.
  */
-func PostApp(r *http.Request, app App) (bool, error) {
+func PostApp(r *http.Request, app *App) (bool, error) {
   context := appengine.NewContext(r)
   key := hash(app.Id)
   appKey := datastore.NewKey(context, "application", key, 0, nil)
-  err := datastore.Get(context, appKey, &app)
+  err := datastore.Get(context, appKey, app)
   if err != nil {
-    _, err := datastore.Put(context, appKey, &app)
+    _, err := datastore.Put(context, appKey, app)
     if err != nil {
       return false, err
     } else {
@@ -75,6 +75,39 @@ func GetApps(r *http.Request) []*App {
     return apps
   } else {
     return []*App{}
+  }
+}
+
+/**
+ *  Create a new device in Google Datastore.
+ */
+func PostDevice(r *http.Request, device *Device) (bool, error) {
+  context := appengine.NewContext(r)
+  key := device.Id
+  deviceKey := datastore.NewKey(context, "device", key, 0, nil)
+  var existingDevice Device
+  err := datastore.Get(context, deviceKey, &existingDevice)
+  if err != nil {
+    // device do not exists... let's insert it
+    (*device).Keys = []ApiKey{}
+    _, err := datastore.Put(context, deviceKey, device)
+    if err != nil {
+      return false, err
+    } else {
+      return true, nil
+    }
+  } else {
+    // device exists... let's update it
+    (*device).Keys = existingDevice.Keys
+    if (*device).Keys == nil {
+      (*device).Keys = []ApiKey{}
+    }
+    _, err := datastore.Put(context, deviceKey, device)
+    if err != nil {
+      return false, err
+    } else {
+      return true, nil
+    }
   }
 }
 

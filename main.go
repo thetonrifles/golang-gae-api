@@ -19,12 +19,13 @@ func init() {
   r := mux.NewRouter()
   r.HandleFunc("/api/app", auth(PostAppHandler)).Methods("POST")
   r.HandleFunc("/api/apps", auth(GetAppsHandler)).Methods("GET")
+  r.HandleFunc("/api/device", auth(PostDeviceHandler)).Methods("POST")
   r.HandleFunc("/api/auth", auth(GetApiKeyHandler)).Methods("GET")
   http.Handle("/", r)
 }
 
 /**
- * Register a new app or update an existing one.
+ * Register a new app.
  *  {
  *    "name" : "resonance-srv",
  *    "android_package" : "com.atooma.resonance.sdk",
@@ -40,7 +41,7 @@ func PostAppHandler(w http.ResponseWriter, r *http.Request) {
   if err == nil {
     app.Owner = owner
     app.Id = hash(app.Name)
-    success, err := PostApp(r, app)
+    success, err := PostApp(r, &app)
     if success {
       responseHandler(w, app)
     } else {
@@ -67,12 +68,39 @@ func GetApiKeyHandler(w http.ResponseWriter, r *http.Request) {
   androidPackage, appId, _ := sender[0], sender[1], sender[2]
   app := GetApp(r, appId)
   if app.Android == androidPackage {
-    key := ApiKey{Key:random(10)}
+    key := ApiKey{Key:random(10),AppId:appId}
     //app.Keys = append(app.Keys, key)
     //PostApp(r, *app)
     responseHandler(w, key)
   } else {
     errorHandler(w, r, http.StatusUnauthorized, "package not allowed")
+  }
+}
+
+/**
+ * Register a new device or update an existing one.
+ * {
+ *   "id" : "abcdefghijklmnopqrstuvwxyz0123456789"
+ *   "model" : "Nexus"
+ *   "vendor" : "LG"
+ *   "os" : "Android 6"
+ *   "api_version" : "0.0.7"
+ *  }
+ *  Authorization: a.petreri@atooma.com
+ */
+func PostDeviceHandler(w http.ResponseWriter, r *http.Request) {
+  decoder := json.NewDecoder(r.Body)
+  var device Device
+  err := decoder.Decode(&device)
+  if err == nil {
+    success, err := PostDevice(r, &device)
+    if success {
+      responseHandler(w, device)
+    } else {
+      errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+    }
+  } else {
+    errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
   }
 }
 
