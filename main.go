@@ -18,6 +18,7 @@ func init() {
   r.HandleFunc("/api/app", auth(PostAppHandler)).Methods("POST")
   r.HandleFunc("/api/apps", auth(GetAppsHandler)).Methods("GET")
   r.HandleFunc("/api/device", auth(PostDeviceHandler)).Methods("POST")
+  r.HandleFunc("/api/items", auth(PostItemsHandler)).Methods("POST")
   http.Handle("/", r)
 }
 
@@ -85,7 +86,7 @@ func PostDeviceHandler(w http.ResponseWriter, r *http.Request) {
     if err == nil {
       success, err := PostDevice(r, &device)
       if success {
-        apiKey := GetApiKey(r, &device, appId)  // _ :=
+        apiKey := GetApiKey(r, &device, appId)
         responseHandler(w, apiKey)
       } else {
         errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
@@ -96,6 +97,14 @@ func PostDeviceHandler(w http.ResponseWriter, r *http.Request) {
   } else {
     errorHandler(w, r, http.StatusUnauthorized, "package not allowed")
   }
+}
+
+/**
+ * Register new items into db.
+ */
+func PostItemsHandler(w http.ResponseWriter, r *http.Request) {
+  count := PostItems(r)
+  responseHandler(w, ItemSent{Count:count})
 }
 
 func auth(fn http.HandlerFunc) http.HandlerFunc {

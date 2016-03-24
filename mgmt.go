@@ -38,6 +38,10 @@ type ApiKey struct {
   AppId string            `json:"app_id"`
 }
 
+type ItemSent struct {
+  Count int               `json:"count"`
+}
+
 /**
  *  Create a new app in Google Datastore.
  */
@@ -149,6 +153,15 @@ func GetApiKey(r *http.Request, device *Device, appId string) ApiKey {
     }
     return apiKey
   }
+}
+
+/**
+ *  Create a new app in Google Datastore.
+ */
+func PostItems(r *http.Request) int {
+  context := appengine.NewContext(r)
+  log.Debugf(context, fmt.Sprintf("%v\n", r.Body))
+  return 0
 }
 
 func hash(s string) string {
