@@ -7,6 +7,7 @@ import (
   "net/http"
   "math/rand"
   "crypto/md5"
+  "encoding/json"
   "google.golang.org/appengine"
   "google.golang.org/appengine/datastore"
   "google.golang.org/appengine/log"
@@ -38,8 +39,8 @@ type ApiKey struct {
   AppId string            `json:"app_id"`
 }
 
-type ItemSent struct {
-  Count int               `json:"count"`
+type User struct {
+  Id string               `json:"user_id"`
 }
 
 /**
@@ -158,10 +159,19 @@ func GetApiKey(r *http.Request, device *Device, appId string) ApiKey {
 /**
  *  Create a new app in Google Datastore.
  */
-func PostItems(r *http.Request) int {
+func PostItems(r *http.Request) (int, error) {
   context := appengine.NewContext(r)
-  log.Debugf(context, fmt.Sprintf("%v\n", r.Body))
-  return 0
+  decoder := json.NewDecoder(r.Body)
+  var wrapper ItemsWrapper
+  err := decoder.Decode(&wrapper)
+  if err == nil {
+    formatted, _ := json.MarshalIndent(wrapper, "", "  ")
+    log.Debugf(context, fmt.Sprintf("%v\n", formatted))
+    count := len(wrapper.Items)
+    return count, nil
+  } else {
+    return 0, err
+  }
 }
 
 func hash(s string) string {

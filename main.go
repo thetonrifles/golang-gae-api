@@ -103,8 +103,12 @@ func PostDeviceHandler(w http.ResponseWriter, r *http.Request) {
  * Register new items into db.
  */
 func PostItemsHandler(w http.ResponseWriter, r *http.Request) {
-  count := PostItems(r)
-  responseHandler(w, ItemSent{Count:count})
+  count, err := PostItems(r)
+  if err == nil {
+    responseHandler(w, ItemSent{Count:count})
+  } else {
+    errorHandler(w, r, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+  }
 }
 
 func auth(fn http.HandlerFunc) http.HandlerFunc {

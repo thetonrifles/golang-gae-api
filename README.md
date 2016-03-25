@@ -18,3 +18,9 @@ Follow these steps for configuring your local environment:
     ```sh
     goapp serve <PATH-TO-ROOT-FOLDER>
     ```
+
+6. Deploy Application
+
+    ```sh
+    goapp deploy -application <PROJECT-ID> <PATH-TO-ROOT-FOLDER>
+    ```
